@@ -1,4 +1,5 @@
-//! A library for reversing array-like SAM tags in reverse alignments.
+//! A library for reversing and complementing array-like SAM tags for negative
+//! facing alignments.
 #![warn(missing_docs)]
 
 use anyhow::Result;
@@ -157,7 +158,7 @@ pub fn revtag(
             .push_tag(b"ID", CARGO_PKG_NAME)
             .push_tag(b"PN", CARGO_PKG_NAME)
             .push_tag(b"VN", CARGO_PKG_VERSION)
-            .push_tag(b"CL", &std::env::args().collect::<Vec<_>>().join(" ")),
+            .push_tag(b"CL", std::env::args().collect::<Vec<_>>().join(" ")),
     );
 
     let mut writer = match &output {

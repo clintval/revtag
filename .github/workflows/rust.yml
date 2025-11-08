@@ -2,6 +2,11 @@ name: CI
 
 on: [push]
 
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -9,32 +14,27 @@ jobs:
   Formatting:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          override: true
-          components: rustfmt
-      - name: Check format
-        run: cargo fmt -- --check
+            toolchain: nightly
+            components: rustfmt
+            override: true
+      - run: cargo fmt -- --check
 
   Linting:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          override: true
-          components: clippy
-      - name: Lint with clippy
-        uses: actions-rs/clippy-check@v1
+            toolchain: nightly
+            components: clippy
+            override: true
+      - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          args: --all-features
 
   Testing:
     name: Build and Test for ${{ matrix.os }}

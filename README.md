@@ -6,7 +6,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/clintval/revtag/badge.svg?branch=main)](https://coveralls.io/github/clintval/revtag?branch=main)
 [![Language](https://img.shields.io/badge/language-rust-a72144.svg)](https://www.rust-lang.org/)
 
-Reverse (and complement) array-like SAM tags for reverse alignments.
+Reverse (and complement) array-like SAM tags for negative facing alignments.
 
 ![Waimea - Kauaʻi](.github/img/cover.jpg)
 
@@ -19,5 +19,7 @@ Install with the Conda or Mamba package manager after setting your [Bioconda cha
 ### Example Usage
 
 ```
-❯ revtag -i in.bam -o out.bam --rev ad ae aq bd be bq cd ce --revcomp ac bc
+❯ revtag -i in.bam -o out.bam \
+      --rev ad ae aq bd be bq cd ce \
+      --revcomp ac bc
 ```
