@@ -152,13 +152,12 @@ pub fn revtag(
 
     let mut header = Header::from_template(reader.header());
 
-    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
     header.push_record(
         HeaderRecord::new(b"PG")
             .push_tag(b"ID", CARGO_PKG_NAME)
             .push_tag(b"PN", CARGO_PKG_NAME)
             .push_tag(b"VN", CARGO_PKG_VERSION)
-            .push_tag(b"CL", &command_line),
+            .push_tag(b"CL", &std::env::args().collect::<Vec<_>>().join(" ")),
     );
 
     let mut writer = match &output {
