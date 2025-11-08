@@ -119,6 +119,7 @@ fn validate_tags(tags: &[String]) -> Result<Vec<[u8; 2]>, Box<dyn error::Error>>
 /// * `output` - The output SAM/BAM/CRAM file path, or None/Some("-") for stdout
 /// * `rev` - SAM tags to reverse (e.g., base qualities)
 /// * `revcomp` - SAM tags to reverse complement (e.g., sequences)
+/// * `threads` - Extra threads for BAM/CRAM compression/decompression
 ///
 /// # Returns
 ///
@@ -129,6 +130,7 @@ pub fn revtag(
     output: Option<PathBuf>,
     rev: Vec<String>,
     revcomp: Vec<String>,
+    threads: usize,
 ) -> Result<i32, Box<dyn error::Error>> {
     let rev_tags = validate_tags(&rev)?;
     let revcomp_tags = validate_tags(&revcomp)?;
@@ -143,6 +145,10 @@ pub fn revtag(
             Reader::from_path(path)?
         }
     };
+
+    if threads > 1 {
+        reader.set_threads(threads - 1)?;
+    }
 
     let mut header = Header::from_template(reader.header());
 
@@ -172,6 +178,10 @@ pub fn revtag(
             Writer::from_path(path, &header, format)?
         }
     };
+
+    if threads > 1 {
+        writer.set_threads(threads - 1)?;
+    }
 
     let progress = ProgLogBuilder::new()
         .name("main")

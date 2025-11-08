@@ -31,6 +31,10 @@ struct Opt {
     /// SAM tags with array values to reverse complement
     #[structopt(long = "--revcomp")]
     revcomp: Vec<String>,
+
+    /// Extra threads for BAM/CRAM compression/decompression
+    #[structopt(short = "t", long = "--threads", default_value = "1")]
+    threads: usize,
 }
 
 /// Main binary entrypoint.
@@ -58,7 +62,7 @@ fn main() -> Result<(), Error> {
         }
     });
 
-    match revtag(input, output, opt.rev, opt.revcomp) {
+    match revtag(input, output, opt.rev, opt.revcomp, opt.threads) {
         Ok(exit_code) => process::exit(exit_code),
         Err(except) => panic!("{}", except),
     }
