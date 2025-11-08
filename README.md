@@ -20,6 +20,6 @@ Install with the Conda or Mamba package manager after setting your [Bioconda cha
 
 ```
 ❯ revtag -i in.bam -o out.bam \
-      --rev ad ae aq bd be bq cd ce \
-      --revcomp ac bc
+    --rev ad ae aq bd be bq cd ce \
+    --revcomp ac bc
 ```
