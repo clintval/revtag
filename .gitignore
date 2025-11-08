@@ -1,0 +1,10 @@
+.idea/
+debug/
+target/
+
+Cargo.lock
+
+**/*.rs.bk
+
+*.iml
+.DS_Store

@@ -1,0 +1,46 @@
+[package]
+name = "revtag"
+version = "0.1.0"
+authors = ["Clint Valentine <valentine.clint@gmail.com>"]
+edition = "2024"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/clintval/revtag"
+description = "Reverse (and complement) array-like SAM tags for reverse alignments."
+documentation = "https://github.com/clintval/revtag/README.md"
+categories = ["command-line-utilities", "science"]
+keywords = ["bioinformatics", "SAM", "alignment", "bwa", "fgbio"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+
+[lib]
+name = "revtaglib"
+path = "src/lib/mod.rs"
+
+[[bin]]
+name = "revtag"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.100"
+bio = "2.0.3"
+env_logger = "0.11.8"
+log = "0.4.28"
+proglog = "0.4.0"
+rust-htslib = "0.51.0"
+structopt = "0.3.26"
+strum = { version = "0.27.2", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2.0.17"
+env_logger = "0.11.8"
+file_diff = "1.0.0"
+pretty_assertions = "1.4.1"
+rstest = "0.26.1"
+serde_test = "1.0.177"
+tempfile = "3.23.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin_include)'] }
