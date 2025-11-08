@@ -12,12 +12,12 @@ Reverse (and complement) array-like SAM tags for reverse alignments.
 
 Install with the Conda or Mamba package manager after setting your [Bioconda channels](https://bioconda.github.io/#usage):
 
-```bash
+```
 ❯ mamba install revtag
 ```
 
 ### Example Usage
 
-```bash
-❯ revtag --rev ad ae aq bd be bq cd ce --revcomp ac bc < input.bam > output.bam
+```
+❯ revtag -i in.bam -o out.bam --rev ad ae aq bd be bq cd ce --revcomp ac bc
 ```
