@@ -1,7 +1,0 @@
-@HD	VN:1.6	SO:coordinate
-@SQ	SN:chr1	LN:248956422
-@PG	ID:bwa	PN:bwa	VN:0.7.17
-read1	0	chr1	100	60	10M	*	0	0	AAAAAAAAAA	IIIIIIIIII	NM:i:0	MD:Z:10	AS:i:10	XS:i:5	RG:Z:sample1	tp:A:P	cm:i:5	s1:i:5	s2:f:10.5	BC:Z:ACGT	QT:Z:IJKL
-read2	16	chr1	200	60	10M	*	0	0	CCCCCCCCCC	JJJJJJJJJJ	NM:i:0	MD:Z:10	AS:i:10	XS:i:5	RG:Z:sample1	tp:A:P	cm:i:5	s1:i:5	s2:f:10.5	BC:Z:TAGG	QT:Z:HGFE
-read3	0	chr1	300	60	10M	*	0	0	GGGGGGGGGG	KKKKKKKKKK	NM:i:1	MD:Z:10	AS:i:10	XS:i:5	RG:Z:sample1	tp:A:P	cm:i:5	s1:i:5	s2:f:10.5
-read4	16	chr1	400	60	10M	*	0	0	TTTTTTTTTT	LLLLLLLLLL	NM:i:0	MD:Z:10	AS:i:10	XS:i:5	RG:Z:sample1	tp:A:P	cm:i:5	s1:i:5	s2:f:10.5	BC:Z:AGCT	QT:Z:FGHI
