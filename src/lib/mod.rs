@@ -214,6 +214,8 @@ pub fn revtag(
 mod tests {
     use super::*;
     use rust_htslib::bam::record::Aux;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
     /// Helper to create a minimal BAM record for testing
     fn create_test_record() -> Record {
@@ -612,5 +614,210 @@ mod tests {
         } else {
             panic!("Expected String");
         }
+    }
+
+    #[test]
+    fn test_validate_tags_happy_path() {
+        let tags = vec!["QT".to_string(), "BC".to_string()];
+        let validated = validate_tags(&tags).expect("expected Ok for valid tags");
+        assert_eq!(validated, vec!([b'Q', b'T'], [b'B', b'C']));
+    }
+
+    #[test]
+    fn test_validate_tags_unhappy_path_invalid_length() {
+        let tags = vec!["Q".to_string(), "ABC".to_string(), "BC".to_string()];
+        let err = validate_tags(&tags).expect_err("expected Err for invalid tag lengths");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("exactly 2 characters"),
+            "unexpected error: {}",
+            msg
+        );
+    }
+
+    // Helper to build a minimal SAM header
+    fn sam_header() -> &'static str {
+        "@HD\tVN:1.6\tSO:unknown\n@SQ\tSN:chr1\tLN:1000\n"
+    }
+
+    // Helper to create two SAM alignment lines: one forward and one reverse with tags
+    fn sam_body_with_tags() -> String {
+        // Fields: QNAME FLAG RNAME POS MAPQ CIGAR RNEXT PNEXT TLEN SEQ QUAL TAGS...
+        // Reverse read flag: 16 (0x10), Forward read flag: 0
+        // rev tags: QT (ArrayU8), MN (String)
+        // revcomp tags: BC (String), SQ (ArrayU8 simulated sequence)
+        let forward = "fwd\t0\tchr1\t1\t60\t10M\t*\t0\t0\tATCGATCGAA\tFFFFFFFFFF\tQT:B:C,10,20,30\tMN:Z:HELLO\tBC:Z:ATCG\tSQ:B:C,65,84,67,71"; // A T C G
+        let reverse = "rev\t16\tchr1\t2\t60\t10M\t*\t0\t0\tGGCATCGTTA\tFFFFFFFFFF\tQT:B:C,1,2,3\tMN:Z:WORLD\tBC:Z:GATT\tSQ:B:C,71,65,84,84"; // G A T T
+        format!("{forward}\n{reverse}\n")
+    }
+
+    // Parse SAM output produced by revtag, returning vector of (qname, tags_map)
+    fn parse_sam_tags(sam: &str) -> Vec<(String, std::collections::HashMap<String, String>)> {
+        sam.lines()
+            .filter(|l| !l.starts_with('@') && !l.is_empty())
+            .map(|line| {
+                let parts: Vec<&str> = line.split('\t').collect();
+                let qname = parts[0].to_string();
+                let mut tags = std::collections::HashMap::new();
+                for field in parts.iter().skip(11) {
+                    if field.len() >= 5
+                        && field.chars().nth(2) == Some(':')
+                        && field.chars().nth(4) == Some(':')
+                    {
+                        // TAG:TYPE:VALUE simplistic parse
+                        let tag = &field[0..2];
+                        let value = &field[5..];
+                        tags.insert(tag.to_string(), value.to_string());
+                    } else if field.len() >= 5 && field.chars().nth(2) == Some(':') {
+                        // TAG:B:TYPE,LIST  (we'll just store raw)
+                        let tag = &field[0..2];
+                        let value = &field[5..];
+                        tags.insert(tag.to_string(), value.to_string());
+                    }
+                }
+                (qname, tags)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_revtag_happy_path_forward_vs_reverse() {
+        let mut infile = NamedTempFile::new().expect("temp sam input");
+        write!(infile, "{}{}", sam_header(), sam_body_with_tags()).unwrap();
+
+        let outfile = NamedTempFile::new().expect("temp sam output");
+
+        let exit = revtag(
+            Some(infile.path().to_path_buf()),
+            Some(outfile.path().to_path_buf()),
+            vec!["QT".into(), "MN".into()], // rev
+            vec!["BC".into(), "SQ".into()], // revcomp
+            1,
+        )
+        .expect("revtag should succeed");
+        assert_eq!(exit, 0);
+
+        let output_contents = std::fs::read_to_string(outfile.path()).unwrap();
+        let parsed = parse_sam_tags(&output_contents);
+        assert_eq!(parsed.len(), 2);
+
+        // Find forward and reverse records
+        let mut fwd = None;
+        let mut rev_rec = None;
+        for (q, t) in parsed {
+            if q == "fwd" {
+                fwd = Some(t);
+            } else if q == "rev" {
+                rev_rec = Some(t);
+            }
+        }
+        let fwd = fwd.expect("forward record present");
+        let rev_rec = rev_rec.expect("reverse record present");
+
+        assert_eq!(fwd.get("MN").unwrap(), "HELLO");
+        assert_eq!(fwd.get("BC").unwrap(), "ATCG");
+        // MN reversed WORLD -> DLROW
+        assert_eq!(rev_rec.get("MN").unwrap(), "DLROW");
+        // BC revcomp of GATT -> AATC
+        assert_eq!(rev_rec.get("BC").unwrap(), "AATC");
+    }
+
+    #[test]
+    fn test_revtag_threads_two() {
+        let mut infile = NamedTempFile::new().expect("temp sam input");
+        write!(infile, "{}{}", sam_header(), sam_body_with_tags()).unwrap();
+        let outfile = NamedTempFile::new().expect("temp sam output");
+
+        let exit = revtag(
+            Some(infile.path().to_path_buf()),
+            Some(outfile.path().to_path_buf()),
+            vec!["MN".into()],
+            vec!["BC".into()],
+            2,
+        )
+        .expect("revtag should succeed with threads=2");
+        assert_eq!(exit, 0);
+        let output_contents = std::fs::read_to_string(outfile.path()).unwrap();
+        assert!(output_contents.contains("rev"));
+        assert!(output_contents.contains("MN:Z:DLROW"));
+    }
+
+    #[test]
+    fn test_revtag_empty_input() {
+        let mut infile = NamedTempFile::new().expect("empty sam input");
+        write!(infile, "{}", sam_header()).unwrap(); // header only
+        let outfile = NamedTempFile::new().expect("empty sam output");
+
+        let exit = revtag(
+            Some(infile.path().to_path_buf()),
+            Some(outfile.path().to_path_buf()),
+            vec!["QT".into()],
+            vec!["BC".into()],
+            1,
+        )
+        .expect("revtag should succeed on empty input");
+        assert_eq!(exit, 0);
+        let output_contents = std::fs::read_to_string(outfile.path()).unwrap();
+        assert!(output_contents.lines().all(|l| l.starts_with('@')));
+    }
+
+    #[test]
+    fn test_revtag_output_bam_format() {
+        let mut infile = NamedTempFile::new().expect("temp sam input");
+        write!(infile, "{}{}", sam_header(), sam_body_with_tags()).unwrap();
+
+        let tmpdir = tempfile::tempdir().unwrap();
+        let bam_out = tmpdir.path().join("out.bam");
+
+        let exit = revtag(
+            Some(infile.path().to_path_buf()),
+            Some(bam_out.clone()),
+            vec!["QT".into(), "MN".into()],
+            vec!["BC".into()],
+            1,
+        )
+        .expect("revtag should succeed producing BAM");
+        assert_eq!(exit, 0);
+
+        let mut reader = Reader::from_path(&bam_out).expect("read BAM output");
+        let mut rec = Record::new();
+        let mut saw_fwd = false;
+        let mut saw_rev = false;
+        while let Some(Ok(())) = reader.read(&mut rec) {
+            let qname = String::from_utf8_lossy(rec.qname()).to_string();
+            if qname == "fwd" {
+                saw_fwd = true;
+                if let Ok(Aux::String(s)) = rec.aux(b"MN") {
+                    assert_eq!(s, "HELLO");
+                }
+            } else if qname == "rev" {
+                saw_rev = true;
+                if let Ok(Aux::String(s)) = rec.aux(b"MN") {
+                    assert_eq!(s, "DLROW");
+                }
+            }
+        }
+        assert!(saw_fwd && saw_rev);
+    }
+
+    #[test]
+    fn test_revtag_output_cram_empty_input() {
+        let mut infile = NamedTempFile::new().expect("empty sam input");
+        write!(infile, "{}", sam_header()).unwrap();
+
+        let tmpdir = tempfile::tempdir().unwrap();
+        let cram_out = tmpdir.path().join("out.cram");
+
+        let exit = revtag(
+            Some(infile.path().to_path_buf()),
+            Some(cram_out.clone()),
+            vec![],
+            vec![],
+            1,
+        )
+        .expect("revtag should succeed for empty input CRAM");
+        assert_eq!(exit, 0);
+        let meta = std::fs::metadata(&cram_out).expect("cram file exists");
+        assert!(meta.len() > 0);
     }
 }
